@@ -355,7 +355,7 @@ while True:
     f_hat = f_hat.real
     f_hat = shiftImg(f_hat)
     f_hat = myNormalize(f_hat)
-    cv2.imwrite(str(cnt) + "imgs/_res.png", f_hat)
+    cv2.imwrite("imgs/" + str(cnt) + "_res.png", f_hat)
 
 plt.subplot(223), plt.imshow(f_hat, 'gray'), plt.title('f_hat')
 
