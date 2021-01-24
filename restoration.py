@@ -165,7 +165,7 @@ def wienerFilter(img, F, K):
     tmp0 = shiftImg(img)
     spectrum0 = FFT2d(tmp0)
 
-    res = 1/F * (np.abs(F) / (np.abs(F) + K)) * spectrum0
+    res = 1/F * (np.abs(F) ** 2 / (np.abs(F) ** 2 + K)) * spectrum0
 
     idft_result = IFFT2d(res)
     idft_real = idft_result.real
@@ -280,4 +280,86 @@ def parametricWienerFilter():
     plt.subplot(224), plt.imshow(wiener_filtered_img, 'gray'), plt.title('wiener_filtered_img')
 
     plt.show()
+
+
+img = cv2.imread("DIP3E_CH05_Original_Images/Fig0525(a)(aerial_view_no_turb).tif")
+img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+img = cv2.resize(img, (256, 256), interpolation=cv2.INTER_AREA)
+W, H = img.shape
+gamma = 1e-5
+step = 1e-6
+a = 0.7
+var = 1e-5
+mean = 0
+
+
+F = np.zeros(img.shape)
+
+
+r = np.arange(H)
+c = np.arange(W)
+rr, cc = np.meshgrid(r, c, indexing='ij')
+
+rr = rr - H // 2
+cc = cc - W // 2
+
+img_ = shiftImg(img)
+G0 = FFT2d(img_)
+
+F = np.exp(-1 * 0.0025 * np.power((rr ** 2 + cc ** 2 ), 5/6))
+G_ = F * G0
+
+
+turb_img = IFFT2d(G_)
+turb_img = turb_img.real
+turb_img = shiftImg(turb_img)
+turb_img = myNormalize(turb_img)
+plt.subplot(221), plt.imshow(turb_img, 'gray'), plt.title('turb_img')
+
+turb_noise_img = myNormalize(addGaussianNoise(turb_img, mean, var))
+plt.subplot(222), plt.imshow(turb_noise_img, 'gray'), plt.title('turb_noise_img')
+
+p = np.zeros(img.shape)
+p[0:3, 0:3] = np.array([[0, -1, 0],[-1, 4, -1],[0, -1, 0]])
+
+p = shiftImg(p)
+P = FFT2d(p)
+
+img_ = shiftImg(turb_noise_img)
+G = FFT2d(img_)
+
+noise_2 = H * W * (var  + mean ** 2)
+cnt = 0
+
+while True:
+    cnt+=1
+    F_hat = G *np.conj(F) / ((np.abs(F)) ** 2 + gamma * ((np.abs(P)) ** 2))
+    R = G - F * F_hat
+
+    R_ = IFFT2d(R)
+    R_ = R_.real
+    r_ = shiftImg(R_)
+
+    r_2 = np.sum(r_ ** 2)
+    print("r_2", r_2)
+    print("noise_2", noise_2)
+    print('(' + str(cnt)+') ', np.abs(r_2 - noise_2))
+    if r_2 < noise_2 -a :
+        gamma += step
+    elif r_2 > noise_2 + a:
+        gamma -= step
+    else:
+        break
+
+    f_hat = IFFT2d(F_hat)
+    f_hat = f_hat.real
+    f_hat = shiftImg(f_hat)
+    f_hat = myNormalize(f_hat)
+    cv2.imwrite(str(cnt) + "imgs/_res.png", f_hat)
+
+plt.subplot(223), plt.imshow(f_hat, 'gray'), plt.title('f_hat')
+
+plt.show()
+
+
 
